@@ -91,6 +91,10 @@ class PackageState:
     # If this package is member of a workspace.
     ws_subdir: T.Optional[str] = None
     ws_member: T.Optional[str] = None
+
+    # If this package is downloaded from git
+    git: bool = False
+    
     # Package configuration state
     cfg: T.Optional[PackageConfiguration] = None
 
@@ -203,7 +207,13 @@ class PackageState:
         return abis
 
     def get_subproject_name(self) -> str:
-        return _dependency_name(self.manifest.package.name, self.manifest.package.api)
+
+        print(f"{self.manifest.package=}")
+        
+        if self.git:
+            return self.manifest.package.name
+        else:
+            return _dependency_name(self.manifest.package.name, self.manifest.package.api)
 
     def abi_resolve_default(self, rust_abi: T.Optional[RUST_ABI]) -> RUST_ABI:
         supported_abis = self.supported_abis()
@@ -507,11 +517,14 @@ class Interpreter:
         manifest, _ = self._load_manifest(subdir)
         downloaded = \
             subp_name in self.environment.wrap_resolver.wraps and \
-            self.environment.wrap_resolver.wraps[subp_name].type is not None
-
+            self.environment.wrap_resolver.wraps[subp_name].type is not None        
+        git = \
+            subp_name in self.environment.wrap_resolver.wraps and \
+            self.environment.wrap_resolver.wraps[subp_name].type == "git"
         ws = self._get_workspace(manifest, subdir, downloaded=downloaded)
         member = ws.packages_to_member[package_name]
         pkg = self._require_workspace_member(ws, member)
+        pkg.git = git        
         return pkg
 
     def _prepare_package(self, pkg: PackageState) -> None:
